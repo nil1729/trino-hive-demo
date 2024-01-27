@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  hive-metastore-db:
+    container_name: hive-metastore-db
+    hostname: hive-metastore-db
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${HIVE_METASTORE_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${HIVE_METASTORE_DB_NAME}
+      MYSQL_USER: ${HIVE_METASTORE_DB_USER}
+      MYSQL_PASSWORD: ${HIVE_METASTORE_DB_PASSWORD}
+    volumes:
+      - hive-metastore-db-data:/var/lib/mysql
+    networks:
+      internal:
+        ipv4_address: ${HIVE_METASTORE_DB_IP}
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  hive-server:
+    container_name: hive-server
+    hostname: hive-server
+    build:
+      context: ${PWD}/hive
+      dockerfile: Dockerfile
+      args:
+        - HIVE_VERSION=${HIVE_VERSION}
+        - HADOOP_VERSION=${HADOOP_VERSION}
+    depends_on:
+      hive-metastore-db:
+        condition: service_healthy
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - HIVE_HOME=/opt/hive
+    volumes:
+      - ${PWD}/secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
+      - ${PWD}/hive/hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ${PWD}/hive/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+    networks:
+      internal:
+        ipv4_address: ${HIVE_SERVER_IP}
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -zv localhost 9083 || exit 1']
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  trino-event-db:
+    container_name: trino-event-db
+    hostname: trino-event-db
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${TRINO_EVENT_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${TRINO_EVENT_DB_NAME}
+      MYSQL_USER: ${TRINO_EVENT_DB_USER}
+      MYSQL_PASSWORD: ${TRINO_EVENT_DB_PASSWORD}
+    volumes:
+      - trino-event-db-data:/var/lib/mysql
+    networks:
+      internal:
+        ipv4_address: ${TRINO_EVENT_DB_IP}
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  trino-coordinator:
+    hostname: trino-coordinator
+    container_name: trino-coordinator
+    build:
+      context: ./trino
+      dockerfile: Dockerfile
+    ports:
+      - '8080:8080'
+      - '9080:9080'
+      - '9081:9081'
+      - '12345:12345'
+    volumes:
+      - ${PWD}/trino/coordinator/config.properties:/etc/trino/config.properties
+      - ${PWD}/trino/coordinator/jvm.config:/etc/trino/jvm.config
+      - ${PWD}/trino/coordinator/jmx-config.yaml:/etc/trino/jmx/config.yaml
+      - ${PWD}/trino/coordinator/mysql-event-listener.properties:/etc/trino/mysql-event-listener.properties
+      - ${PWD}/secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
+      - ${PWD}/trino/catalog:/etc/trino/catalog
+      - ${PWD}/trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
+    restart: always
+    depends_on:
+      trino-event-db:
+        condition: service_healthy
+      hive-server:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/v1/info']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+  trino-worker:
+    build:
+      context: ./trino
+      dockerfile: Dockerfile
+    volumes:
+      - ${PWD}/trino/worker/config.properties:/etc/trino/config.properties
+      - ${PWD}/secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
+      - ${PWD}/trino/catalog:/etc/trino/catalog
+      - ${PWD}/trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
+    depends_on:
+      trino-event-db:
+        condition: service_healthy
+      hive-server:
+        condition: service_healthy
+    restart: always
+    deploy:
+      replicas: 1
+    networks:
+      - internal
+
+volumes:
+  trino-event-db-data:
+  hive-metastore-db-data:
+
+networks:
+  internal:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${INTERNAL_SUBNET}
