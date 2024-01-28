@@ -22,7 +22,7 @@ This github repository describes a simple way to integrate `Hive Metastore` with
 - Used `postgres` as the backend database for Superset. [Read Docs](https://superset.apache.org/docs/installation/configuring-superset#using-a-production-metastore)
 - Customize superset image for adding `trino` driver. [Read Docs](https://superset.apache.org/docs/databases/installing-database-drivers)
 - Adding Trino connection to Superset. [Read Docs](https://superset.apache.org/docs/databases/trino/)
-- Superset Initialization in Docker Container. [Read Guide](https://hub.docker.com/r/apache/superset)
+- Superset Initialization in Docker Container. [Dockerhub Guide](https://hub.docker.com/r/apache/superset)
 
 ### Hive Metastore Configuration
 
