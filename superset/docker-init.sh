@@ -3,9 +3,11 @@
 echo "running docker-init.sh"
 
 # db upgrade
+echo "db upgrade"
 superset db upgrade
 
 # create admin user
+echo "create admin user"
 superset fab create-admin \
     --username admin \
     --firstname Superset \
@@ -14,6 +16,7 @@ superset fab create-admin \
     --password admin
 
 # setup roles
+echo "setup roles"
 superset init
 
 # existing
