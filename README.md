@@ -85,7 +85,6 @@ exchange.s3.aws-secret-key={{HMAC SECRET KEY}}
     ├── Dockerfile
     ├── catalog
     │   ├── hive.properties
-    │   ├── hudi.properties
     │   └── jmx.properties
     ├── common
     │   └── exchange-manager.properties
