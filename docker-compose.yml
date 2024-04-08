@@ -85,6 +85,8 @@ services:
       # - ${PWD}/trino/coordinator/mysql-event-listener.properties:/etc/trino/mysql-event-listener.properties
       - ${PWD}/secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
       - ${PWD}/trino/catalog/iceberg.properties:/etc/trino/catalog/iceberg.properties
+      - ${PWD}/trino/coordinator/opa.properties:/etc/trino/access-control.properties
+      - ${PWD}/trino/coordinator/log.properties:/etc/trino/log.properties
       # - ${PWD}/trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
     # restart: always
     depends_on:
