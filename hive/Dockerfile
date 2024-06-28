@@ -32,8 +32,9 @@ RUN wget https://archive.apache.org/dist/hive/hive-$HIVE_VERSION/apache-hive-$HI
     mv apache-hive-$HIVE_VERSION-bin $HIVE_HOME && \
     rm apache-hive-$HIVE_VERSION-bin.tar.gz
 
-# download mysql-connector-jar
+# download mysql-connector-jar and postgresql-connector-jar
 RUN wget -P $HIVE_HOME/lib "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar"
+RUN wget -P $HIVE_HOME/lib "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar"
 
 # Set permissions if required
 RUN chmod -R 755 $HADOOP_HOME $HIVE_HOME
