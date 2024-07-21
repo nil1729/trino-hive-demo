@@ -49,7 +49,7 @@ jobs:
         with:
           context: ./hive
           push: true
-          tags: hive-${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME  }}:hive-${{ github.ref_name }}
           labels: ${{ steps.meta.outputs.labels }}
       
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see "[AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds)." 
@@ -97,7 +97,7 @@ jobs:
         with:
           context: ./trino
           push: true
-          tags: trino-${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME  }}:trino-${{ github.ref_name }}
           labels: ${{ steps.meta.outputs.labels }}
       
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see "[AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds)." 
@@ -145,7 +145,7 @@ jobs:
         with:
           context: ./superset
           push: true
-          tags: superset-${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME  }}:superset-${{ github.ref_name }}
           labels: ${{ steps.meta.outputs.labels }}
       
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see "[AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds)." 
