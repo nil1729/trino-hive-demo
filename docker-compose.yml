@@ -23,12 +23,14 @@ services:
   hive-server:
     container_name: hive-server
     hostname: hive-server
-    build:
-      context: ./hive
-      dockerfile: Dockerfile
-      args:
-        - HIVE_VERSION=${HIVE_VERSION}
-        - HADOOP_VERSION=${HADOOP_VERSION}
+    image: ${HIVE_IMAGE}
+    pull_policy: always
+    # build:
+    #   context: ./hive
+    #   dockerfile: Dockerfile
+    #   args:
+    #     - HIVE_VERSION=${HIVE_VERSION}
+    #     - HADOOP_VERSION=${HADOOP_VERSION}
     depends_on:
       hive-metastore-db:
         condition: service_healthy
@@ -109,9 +111,11 @@ services:
   trino-coordinator:
     hostname: trino-coordinator
     container_name: trino-coordinator
-    build:
-      context: ./trino
-      dockerfile: Dockerfile
+    image: ${TRINO_IMAGE}
+    pull_policy: always
+    # build:
+    #   context: ./trino
+    #   dockerfile: Dockerfile
     ports:
       - '8080:8080'
       - '9080:9080'
@@ -151,9 +155,11 @@ services:
     profiles: [trino]
 
   trino-worker:
-    build:
-      context: ./trino
-      dockerfile: Dockerfile
+    image: ${TRINO_IMAGE}
+    pull_policy: always
+    # build:
+    #   context: ./trino
+    #   dockerfile: Dockerfile
     volumes:
       - ./trino/worker/config.properties:/etc/trino/config.properties
       - ./secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
@@ -198,9 +204,11 @@ services:
   superset:
     container_name: superset
     hostname: superset
-    build:
-      context: ./superset
-      dockerfile: Dockerfile
+    image: ${SUPERSET_IMAGE}
+    pull_policy: always
+    # build:
+    #   context: ./superset
+    #   dockerfile: Dockerfile
     depends_on:
       superser-backend-db:
         condition: service_healthy
@@ -219,9 +227,11 @@ services:
   superset-init:
     container_name: superset-init
     hostname: superset-init
-    build:
-      context: ./superset
-      dockerfile: Dockerfile
+    image: ${SUPERSET_IMAGE}
+    pull_policy: always
+    # build:
+    #   context: ./superset
+    #   dockerfile: Dockerfile
     command: ' /opt/bin/docker-init.sh'
     depends_on:
       superser-backend-db:
