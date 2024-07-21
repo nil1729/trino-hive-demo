@@ -70,6 +70,42 @@ services:
       timeout: 5s
     profiles: [trino]
 
+  trino-cache-fs-init:
+    image: alpine:3.19.2
+    hostname: trino-cache-fs-init
+    container_name: trino-cache-fs-init
+    user: root
+    volumes:
+      - trino-cache-fs-1:/tmp/trino-cache/1
+      - trino-cache-fs-2:/tmp/trino-cache/2
+    networks:
+      - internal
+    profiles: [trino]
+    command: >
+      sh -c '
+        set -eux;
+
+        apk add --no-cache shadow;
+
+        [ ! -d /tmp/trino-cache/1/iceberg ] && mkdir -p /tmp/trino-cache/1/iceberg;
+        [ ! -d /tmp/trino-cache/2/iceberg ] && mkdir -p /tmp/trino-cache/2/iceberg;
+
+        if ! id -u trino > /dev/null 2>&1; then
+          adduser -D trino;
+        fi;
+
+        id trino;
+
+        chown -R trino /tmp/trino-cache/1;
+        chown -R trino /tmp/trino-cache/2;
+
+        chmod -R u+w /tmp/trino-cache/1;
+        chmod -R u+w /tmp/trino-cache/1;
+
+        echo "user [trino] has been created, and the ownership and permissions for cache directory have been updated"
+        exit 0;
+      '
+
   trino-coordinator:
     hostname: trino-coordinator
     container_name: trino-coordinator
@@ -89,6 +125,10 @@ services:
       - ./secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
       - ./trino/catalog:/etc/trino/catalog
       - ./trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
+
+      # file system caching (alluxio)
+      - trino-cache-fs-1:/tmp/trino-cache/1
+      - trino-cache-fs-2:/tmp/trino-cache/2
     deploy:
       restart_policy:
         condition: on-failure
@@ -98,6 +138,8 @@ services:
         condition: service_healthy
       hive-server:
         condition: service_healthy
+      trino-cache-fs-init:
+        condition: service_completed_successfully
     networks:
       - internal
     healthcheck:
@@ -117,11 +159,13 @@ services:
       - ./secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
       - ./trino/catalog:/etc/trino/catalog
       - ./trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
+            
+      # file system caching (alluxio)
+      - trino-cache-fs-1:/tmp/trino-cache/1
+      - trino-cache-fs-2:/tmp/trino-cache/2
     depends_on:
-      trino-event-db:
-        condition: service_healthy
-      hive-server:
-        condition: service_healthy
+      trino-cache-fs-init:
+        condition: service_completed_successfully
     deploy:
       replicas: 1
       restart_policy:
@@ -195,6 +239,8 @@ volumes:
   trino-event-db-data:
   hive-metastore-db-data:
   superser-backend-db-data:
+  trino-cache-fs-1:
+  trino-cache-fs-2:
 
 networks:
   internal:
