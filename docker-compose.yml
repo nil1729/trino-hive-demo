@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   hive-metastore-db:
     container_name: hive-metastore-db
@@ -20,12 +18,13 @@ services:
       interval: 10s
       retries: 5
       timeout: 5s
+    profiles: [hive]
 
   hive-server:
     container_name: hive-server
     hostname: hive-server
     build:
-      context: ${PWD}/hive
+      context: ./hive
       dockerfile: Dockerfile
       args:
         - HIVE_VERSION=${HIVE_VERSION}
@@ -37,9 +36,9 @@ services:
       - HADOOP_HOME=/opt/hadoop
       - HIVE_HOME=/opt/hive
     volumes:
-      - ${PWD}/secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
-      - ${PWD}/hive/hive-site.xml:/opt/hive/conf/hive-site.xml
-      - ${PWD}/hive/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
+      - ./hive/hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ./hive/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
     networks:
       internal:
         ipv4_address: ${HIVE_SERVER_IP}
@@ -48,6 +47,7 @@ services:
       interval: 10s
       retries: 5
       timeout: 5s
+    profiles: [hive]
 
   trino-event-db:
     container_name: trino-event-db
@@ -68,12 +68,13 @@ services:
       interval: 10s
       retries: 5
       timeout: 5s
+    profiles: [trino]
 
   trino-coordinator:
     hostname: trino-coordinator
     container_name: trino-coordinator
     build:
-      context: ${PWD}/trino
+      context: ./trino
       dockerfile: Dockerfile
     ports:
       - '8080:8080'
@@ -81,14 +82,17 @@ services:
       - '9081:9081'
       - '12345:12345'
     volumes:
-      - ${PWD}/trino/coordinator/config.properties:/etc/trino/config.properties
-      - ${PWD}/trino/coordinator/jvm.config:/etc/trino/jvm.config
-      - ${PWD}/trino/coordinator/jmx-config.yaml:/etc/trino/jmx/config.yaml
-      - ${PWD}/trino/coordinator/mysql-event-listener.properties:/etc/trino/mysql-event-listener.properties
-      - ${PWD}/secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
-      - ${PWD}/trino/catalog:/etc/trino/catalog
-      - ${PWD}/trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
-    restart: always
+      - ./trino/coordinator/config.properties:/etc/trino/config.properties
+      - ./trino/coordinator/jvm.config:/etc/trino/jvm.config
+      - ./trino/coordinator/jmx-config.yaml:/etc/trino/jmx/config.yaml
+      - ./trino/coordinator/mysql-event-listener.properties:/etc/trino/mysql-event-listener.properties
+      - ./secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
+      - ./trino/catalog:/etc/trino/catalog
+      - ./trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
     depends_on:
       trino-event-db:
         condition: service_healthy
@@ -102,26 +106,30 @@ services:
       timeout: 5s
       retries: 3
       start_period: 90s
+    profiles: [trino]
 
   trino-worker:
     build:
-      context: ${PWD}/trino
+      context: ./trino
       dockerfile: Dockerfile
     volumes:
-      - ${PWD}/trino/worker/config.properties:/etc/trino/config.properties
-      - ${PWD}/secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
-      - ${PWD}/trino/catalog:/etc/trino/catalog
-      - ${PWD}/trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
+      - ./trino/worker/config.properties:/etc/trino/config.properties
+      - ./secrets/gcp-sa.json:/opt/gcp/secrets/service-account.json
+      - ./trino/catalog:/etc/trino/catalog
+      - ./trino/common/exchange-manager.properties:/etc/trino/exchange-manager.properties
     depends_on:
       trino-event-db:
         condition: service_healthy
       hive-server:
         condition: service_healthy
-    restart: always
     deploy:
       replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
     networks:
       - internal
+    profiles: [trino]
 
   superser-backend-db:
     container_name: superser-backend-db
@@ -141,12 +149,13 @@ services:
       interval: 10s
       retries: 5
       timeout: 5s
+    profiles: [superset]
 
   superset:
     container_name: superset
     hostname: superset
     build:
-      context: ${PWD}/superset
+      context: ./superset
       dockerfile: Dockerfile
     depends_on:
       superser-backend-db:
@@ -155,18 +164,19 @@ services:
       - SUPERSET_SECRET_KEY=${SUPERSET_SECRET_KEY}
       - SUPERSET_CONFIG_PATH=/app/superset_config.py
     volumes:
-      - ${PWD}/superset/superset_config.py:/app/superset_config.py
+      - ./superset/superset_config.py:/app/superset_config.py
     ports:
       - '8088:8088'
     networks:
       - www
       - internal
+    profiles: [superset]
 
   superset-init:
     container_name: superset-init
     hostname: superset-init
     build:
-      context: ${PWD}/superset
+      context: ./superset
       dockerfile: Dockerfile
     command: ' /opt/bin/docker-init.sh'
     depends_on:
@@ -176,9 +186,10 @@ services:
       - SUPERSET_SECRET_KEY=${SUPERSET_SECRET_KEY}
       - SUPERSET_CONFIG_PATH=/app/superset_config.py
     volumes:
-      - ${PWD}/superset/superset_config.py:/app/superset_config.py
+      - ./superset/superset_config.py:/app/superset_config.py
     networks:
       - internal
+    profiles: [superset]
 
 volumes:
   trino-event-db-data:
