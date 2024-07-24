@@ -1,5 +1,5 @@
 # Use a base image with Java and Hadoop
-FROM openjdk:8-jre
+FROM openjdk:11.0.16-jre
 
 # build arguments
 ARG HADOOP_VERSION
