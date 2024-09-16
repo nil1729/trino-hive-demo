@@ -9,3 +9,8 @@ dependencies:
     version: 0.28.0
     repository: file://charts/trino
     condition: trino.enabled
+  
+  - name: hive
+    version: 0.1.0
+    repository: file://charts/hive
+    condition: hive.enabled
