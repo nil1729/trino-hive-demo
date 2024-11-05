@@ -30,10 +30,12 @@ hive:
   podAnnotations: {}
   podLabels: {}
 
-  podSecurityContext: {}
+  podSecurityContext:
+    {}
     # fsGroup: 2000
 
-  securityContext: {}
+  securityContext:
+    {}
     # capabilities:
     #   drop:
     #   - ALL
@@ -48,7 +50,8 @@ hive:
   ingress:
     enabled: false
     className: ""
-    annotations: {}
+    annotations:
+      {}
       # kubernetes.io/ingress.class: nginx
       # kubernetes.io/tls-acme: "true"
     hosts:
@@ -61,7 +64,8 @@ hive:
     #    hosts:
     #      - chart-example.local
 
-  resources: {}
+  resources:
+    {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
     # resources, such as Minikube. If you do want to specify resources, uncomment the following
@@ -123,9 +127,9 @@ trino:
   # workerNameOverride: trino-worker-adhoc
   # nameOverride: trino-adhoc
   # ```
-  nameOverride:
-  coordinatorNameOverride:
-  workerNameOverride:
+  nameOverride: trino-local
+  coordinatorNameOverride: trino-local-coordinator
+  workerNameOverride: trino-local-worker
 
   image:
     # -- Image registry, defaults to empty, which results in DockerHub usage
@@ -133,7 +137,7 @@ trino:
     # -- Repository location of the Trino image, typically `organization/imagename`
     repository: trinodb/trino
     # -- Image tag, defaults to the Trino release version specified as `appVersion` from Chart.yaml
-    tag: ""
+    tag: "440"
     # -- Optional digest value of the image specified as `sha256:abcd...`. A specified value overrides `tag`.
     digest: ""
     # -- When true, only the content in `repository` is used as image reference
@@ -141,10 +145,11 @@ trino:
     pullPolicy: IfNotPresent
 
   imagePullSecrets:
-    - name: registry-credentials
+    []
+    # - name: registry-credentials
 
   server:
-    workers: 2
+    workers: 1
     node:
       environment: production
       dataDir: /data/trino
@@ -164,7 +169,7 @@ trino:
       # -- Trino supports multiple [authentication
       # types](https://trino.io/docs/current/security/authentication-types.html):
       # PASSWORD, CERTIFICATE, OAUTH2, JWT, KERBEROS.
-      authenticationType: ""
+      authenticationType: "PASSWORD"
       query:
         maxMemory: "4GB"
     exchangeManager:
@@ -173,10 +178,24 @@ trino:
     workerExtraConfig: ""
     coordinatorExtraConfig: ""
     autoscaling:
-      enabled: false
-      maxReplicas: 5
+      enabled: true
+      maxReplicas: 4
       targetCPUUtilizationPercentage: 50
-      behavior: {}
+      targetMemoryUtilizationPercentage: 70
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 5
+          policies:
+            - type: Percent
+              value: 100
+              periodSeconds: 15
+        scaleUp:
+          stabilizationWindowSeconds: 0
+          policies:
+            - type: Pods
+              value: 4
+              periodSeconds: 15
+          selectPolicy: Max
       # server.autoscaling.behavior -- Configuration for scaling up and down.
       # @raw
       # Example:
@@ -339,7 +358,9 @@ trino:
   #  - node.id=${NODE_ID}
   # ```
 
-  additionalConfigProperties: []
+  additionalConfigProperties:
+    - internal-communication.shared-secret=random-value-999
+    - http-server.process-forwarded=true
   # additionalConfigProperties -- [Additional config
   # properties](https://trino.io/docs/current/admin/properties.html).
   # @raw
@@ -484,7 +505,9 @@ trino:
     # service.nodePort -- The port the service listens on the host, for NodePort type. If not set, Kubernetes will [allocate a port automatically](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport-custom-port).
     nodePort: ""
 
-  auth: {}
+  auth: # {}
+    passwordAuth: |
+      nilanjan.deb:$2y$10$TaIpQC.dnjGzoxiYYMuS/uQqSBEYJ4H3n4s4Rq8da7bVCBrdox.fW
   # auth -- Available authentication methods.
   # @raw
   # Use username and password provided as a [password file](https://trino.io/docs/current/security/password-file.html#file-format):
@@ -560,7 +583,14 @@ trino:
     #    protocol: TCP
     # ```
 
-    resources: {}
+    resources:
+      limits:
+        cpu: 2
+        memory: 3Gi
+      requests:
+        cpu: 2
+        memory: 3Gi
+
     # coordinator.resources -- It is recommended not to specify default resources
     # and to leave this as a conscious choice for the user. This also increases
     # chances charts run on environments with little resources, such as Minikube.
@@ -700,7 +730,13 @@ trino:
     #    protocol: TCP
     # ```
 
-    resources: {}
+    resources:
+      limits:
+        cpu: 1
+        memory: 3Gi
+      requests:
+        cpu: 1
+        memory: 3Gi
     # worker.resources -- It is recommended not to specify default resources and
     # to leave this as a conscious choice for the user. This also increases
     # chances charts run on environments with little resources, such as Minikube.
@@ -928,28 +964,16 @@ trino:
   commonLabels: {}
 
   ingress:
-    enabled: false
-    className: ""
+    enabled: true
+    className: "contour"
     annotations: {}
-    hosts: []
-    # ingress.hosts -- [Ingress
-    # rules](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-rules).
-    # @raw
-    # Example:
-    # ```yaml
-    #  - host: trino.example.com
-    #    paths:
-    #      - path: /
-    #        pathType: ImplementationSpecific
-    # ```
-    tls: []
-    # ingress.tls -- Ingress
-    # [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls)
-    # configuration.
-    # @raw
-    # Example:
-    # ```yaml
-    #  - secretName: chart-example-tls
-    #    hosts:
-    #      - chart-example.local
-    # ```
+    hosts:
+      - host: trino.k8s.gcp.nilanjandeb.com
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: trino-tls-secret
+        hosts:
+          - trino.k8s.gcp.nilanjandeb.com
+# gcloud beta container --project "pwa-demo-nil1729" clusters create "k8s-001-clone-1" --zone "us-central1-a" --no-enable-basic-auth --cluster-version "1.30.5-gke.1355000" --release-channel "regular" --machine-type "e2-standard-8" --image-type "COS_CONTAINERD" --disk-type "pd-balanced" --disk-size "100" --metadata disable-legacy-endpoints=true --scopes "https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" --max-pods-per-node "110" --num-nodes "1" --logging=SYSTEM,WORKLOAD --monitoring=SYSTEM,STORAGE,POD,DEPLOYMENT,STATEFULSET,DAEMONSET,HPA,CADVISOR,KUBELET --enable-ip-alias --network "projects/pwa-demo-nil1729/global/networks/default" --subnetwork "projects/pwa-demo-nil1729/regions/us-central1/subnetworks/default" --no-enable-intra-node-visibility --default-max-pods-per-node "110" --enable-ip-access --security-posture=standard --workload-vulnerability-scanning=disabled --no-enable-master-authorized-networks --no-enable-google-cloud-access --addons HorizontalPodAutoscaling,GcePersistentDiskCsiDriver --enable-autoupgrade --enable-autorepair --max-surge-upgrade 1 --max-unavailable-upgrade 0 --binauthz-evaluation-mode=DISABLED --enable-managed-prometheus --enable-shielded-nodes --node-locations "us-central1-a"
