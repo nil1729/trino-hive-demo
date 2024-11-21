@@ -32,20 +32,44 @@ hive:
         - secretKey: gcp-service-account
           remoteRefKey: gcp-service-account
 
+  configMap:
+    name: hive-thrift-config-map
+    core-site-xml: |
+      <configuration>
+        <property>
+            <name>google.cloud.auth.type</name>
+            <value>SERVICE_ACCOUNT_JSON_KEYFILE</value>
+        </property>
+        <property>
+            <name>google.cloud.auth.service.account.json.keyfile</name>
+            <value>/opt/secrets/gcs-sa.json</value>
+        </property>
+      </configuration>
+
   volumes:
-    - name: service-account-vol
+    - name: secret-vol
       secret:
         secretName: hive-thrift-secrets
         optional: false
         items:
           - key: gcp-service-account
             path: gcs-sa.json
+    - name: config-map-vol
+      configMap:
+        name: hive-thrift-config-map
+        items:
+          - key: core-site-xml
+            path: core-site.xml
 
   volumeMounts:
-    - name: service-account-vol
+    - name: secret-vol
       mountPath: "/opt/secrets/gcs-sa.json"
       subPath: gcs-sa.json
       readOnly: true
+    - name: config-map-vol
+      mountPath: "/opt/hadoop/etc/hadoop/core-site.xml"
+      subPath: core-site.xml
+      readOnly: false
 
   env:
     - name: HIVE_AUX_JARS_PATH
@@ -55,7 +79,7 @@ hive:
     - name: SERVICE_NAME
       value: "metastore"
     - name: IS_RESUME
-      value: "true"
+      value: "false"
     - name: VERBOSE
       value: "true"
     - name: DB_DRIVER
@@ -81,7 +105,6 @@ hive:
     tls: []
 
   livenessProbe:
-    enabled: true
     tcpSocket:
       port: 9083
     initialDelaySeconds: 30
@@ -90,7 +113,6 @@ hive:
     failureThreshold: 5
 
   readinessProbe:
-    enabled: true
     tcpSocket:
       port: 9083
     initialDelaySeconds: 30
