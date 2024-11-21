@@ -1,119 +1,120 @@
 hive:
-  enabled: false
-  # Default values for hive.
-  # This is a YAML-formatted file.
-  # Declare variables to be passed into your templates.
-
+  enabled: true
   replicaCount: 1
-
   image:
-    repository: nginx
+    repository: ghcr.io/nil1729/trino-hive-demo
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
+    tag: "hive-master"
 
   imagePullSecrets: []
-  nameOverride: ""
+  nameOverride: "hive-thrift"
   fullnameOverride: ""
 
   serviceAccount:
-    # Specifies whether a service account should be created
-    create: true
-    # Automatically mount a ServiceAccount's API credentials?
-    automount: true
-    # Annotations to add to the service account
+    create: false
+    automount: false
     annotations: {}
-    # The name of the service account to use.
-    # If not set and create is true, a name is generated using the fullname template
     name: ""
 
-  podAnnotations: {}
-  podLabels: {}
+  externalSecrets:
+    enabled: true
+    refreshInterval: "24h"
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: gcp-secret-manager
+    target:
+      name: hive-thrift-secrets
+      creationPolicy: Owner
+    data:
+      secretRef:
+        - secretKey: SERVICE_OPTS
+          remoteRefKey: hive-thrift-secret-local
+        - secretKey: gcp-service-account
+          remoteRefKey: gcp-service-account
 
-  podSecurityContext:
-    {}
-    # fsGroup: 2000
+  volumes:
+    - name: service-account-vol
+      secret:
+        secretName: hive-thrift-secrets
+        optional: false
+        items:
+          - key: gcp-service-account
+            path: gcs-sa.json
 
-  securityContext:
-    {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+  volumeMounts:
+    - name: service-account-vol
+      mountPath: "/opt/secrets/gcs-sa.json"
+      subPath: gcs-sa.json
+      readOnly: true
+
+  env:
+    - name: HIVE_AUX_JARS_PATH
+      value: "/opt/hadoop/share/hadoop/tools/lib/*"
+    - name: METASTORE_AUX_JARS_PATH
+      value: "/opt/hadoop/share/hadoop/tools/lib/*"
+    - name: SERVICE_NAME
+      value: "metastore"
+    - name: IS_RESUME
+      value: "true"
+    - name: VERBOSE
+      value: "true"
+    - name: DB_DRIVER
+      value: "postgres"
+    - name: SERVICE_OPTS
+      valueFrom:
+        secretKeyRef:
+          name: hive-thrift-secrets
+          key: SERVICE_OPTS
 
   service:
     type: ClusterIP
-    port: 80
+    name: thrift
+    port: 9083
+    targetPort: 9083
+    protocol: TCP
 
   ingress:
     enabled: false
     className: ""
-    annotations:
-      {}
-      # kubernetes.io/ingress.class: nginx
-      # kubernetes.io/tls-acme: "true"
-    hosts:
-      - host: chart-example.local
-        paths:
-          - path: /
-            pathType: ImplementationSpecific
+    annotations: {}
+    hosts: []
     tls: []
-    #  - secretName: chart-example-tls
-    #    hosts:
-    #      - chart-example.local
-
-  resources:
-    {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
 
   livenessProbe:
-    httpGet:
-      path: /
-      port: http
+    enabled: true
+    tcpSocket:
+      port: 9083
+    initialDelaySeconds: 30
+    periodSeconds: 60
+    timeoutSeconds: 10
+    failureThreshold: 5
+
   readinessProbe:
-    httpGet:
-      path: /
-      port: http
+    enabled: true
+    tcpSocket:
+      port: 9083
+    initialDelaySeconds: 30
+    periodSeconds: 60
+    timeoutSeconds: 10
+    failureThreshold: 5
 
   autoscaling:
     enabled: false
     minReplicas: 1
-    maxReplicas: 100
+    maxReplicas: 3
     targetCPUUtilizationPercentage: 80
-    # targetMemoryUtilizationPercentage: 80
 
-  # Additional volumes on the output Deployment definition.
-  volumes: []
-  # - name: foo
-  #   secret:
-  #     secretName: mysecret
-  #     optional: false
-
-  # Additional volumeMounts on the output Deployment definition.
-  volumeMounts: []
-  # - name: foo
-  #   mountPath: "/etc/foo"
-  #   readOnly: true
-
+  resources: {}
   nodeSelector: {}
-
   tolerations: []
-
   affinity: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext: {}
 
 trino:
-  enabled: true
+  enabled: false
   # Default values for trino.
   # This is a YAML-formatted file.
   # Declare variables to be passed into your templates.
