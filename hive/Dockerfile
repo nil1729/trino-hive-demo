@@ -12,6 +12,4 @@ RUN wget -P /opt/hive/lib \
 RUN wget -P /opt/hadoop/share/hadoop/tools/lib \ 
     "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar"
 
-COPY --from=build /build/target/*.jar /opt/hive/lib/
-
 USER hive
