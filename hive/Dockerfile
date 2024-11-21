@@ -12,7 +12,7 @@ RUN wget -P /opt/hive/lib \
 RUN wget -P /opt/hadoop/share/hadoop/tools/lib \ 
     "https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar"
 
-COPY ./docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+COPY ./docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 USER hive
