@@ -2,19 +2,18 @@
 
 # https://github.com/apache/hive/blob/master/packaging/src/docker/entrypoint.sh
 
-set +x
+set -x
 
 : ${DB_DRIVER:=derby}
 
 [[ $VERBOSE = "true" ]] && VERBOSE_MODE="--verbose" || VERBOSE_MODE=""
 
 function initialize_hive {
-  set -x
   COMMAND="-initOrUpgradeSchema"
   if [ "$(echo "$HIVE_VER" | cut -d '.' -f1)" -lt "4" ]; then
     COMMAND="-${SCHEMA_COMMAND:-initSchema}"
   fi
-  if ! $HIVE_HOME/bin/schematool -info -dbType $DB_DRIVER -verbose 2>&1 | grep -iq "metastore schema version" ; then
+  if ! $HIVE_HOME/bin/schematool -info -dbType $DB_DRIVER -verbose 2>&1 | grep -q "Metastore schema version" ; then
     $HIVE_HOME/bin/schematool -dbType $DB_DRIVER $COMMAND $VERBOSE_MODE
     if [ $? -eq 0 ]; then
       echo "Initialized schema successfully.."
@@ -25,10 +24,6 @@ function initialize_hive {
   fi
 }
 
-# handles schema initialization
-initialize_hive
-
-set +x
 export HIVE_CONF_DIR=$HIVE_HOME/conf
 if [ -d "${HIVE_CUSTOM_CONF_DIR:-}" ]; then
   find "${HIVE_CUSTOM_CONF_DIR}" -type f -exec \
@@ -38,6 +33,9 @@ if [ -d "${HIVE_CUSTOM_CONF_DIR:-}" ]; then
 fi
 
 export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS -Xmx1G $SERVICE_OPTS"
+
+# handles schema initialization
+initialize_hive
 
 if [ "${SERVICE_NAME}" == "hiveserver2" ]; then
   export HADOOP_CLASSPATH=$TEZ_HOME/*:$TEZ_HOME/lib/*:$HADOOP_CLASSPATH
