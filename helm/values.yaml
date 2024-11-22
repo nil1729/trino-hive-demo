@@ -1,3 +1,20 @@
+externalSecrets:
+  enabled: true
+  name: external-secrets
+  refreshInterval: "24h"
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcp-secret-manager
+  target:
+    name: common-secrets
+    creationPolicy: Owner
+  data:
+    secretRef:
+      - secretKey: SERVICE_OPTS
+        remoteRefKey: hive-thrift-secret-local
+      - secretKey: gcp-service-account
+        remoteRefKey: gcp-service-account
+
 hive:
   enabled: true
   replicaCount: 1
@@ -7,30 +24,14 @@ hive:
     tag: "hive-master"
 
   imagePullSecrets: []
-  nameOverride: "hive-thrift"
-  fullnameOverride: ""
+  nameOverride: ""
+  fullnameOverride: "hive-thrift"
 
   serviceAccount:
     create: false
     automount: false
     annotations: {}
     name: ""
-
-  externalSecrets:
-    enabled: true
-    refreshInterval: "24h"
-    secretStoreRef:
-      kind: ClusterSecretStore
-      name: gcp-secret-manager
-    target:
-      name: hive-thrift-secrets
-      creationPolicy: Owner
-    data:
-      secretRef:
-        - secretKey: SERVICE_OPTS
-          remoteRefKey: hive-thrift-secret-local
-        - secretKey: gcp-service-account
-          remoteRefKey: gcp-service-account
 
   configMap:
     name: hive-thrift-config-map
@@ -49,7 +50,7 @@ hive:
   volumes:
     - name: secret-vol
       secret:
-        secretName: hive-thrift-secrets
+        secretName: common-secrets
         optional: false
         items:
           - key: gcp-service-account
@@ -78,8 +79,6 @@ hive:
       value: "/opt/hadoop/share/hadoop/tools/lib/*"
     - name: SERVICE_NAME
       value: "metastore"
-    - name: IS_RESUME
-      value: "false"
     - name: VERBOSE
       value: "true"
     - name: DB_DRIVER
@@ -87,7 +86,7 @@ hive:
     - name: SERVICE_OPTS
       valueFrom:
         secretKeyRef:
-          name: hive-thrift-secrets
+          name: common-secrets
           key: SERVICE_OPTS
 
   service:
@@ -136,7 +135,7 @@ hive:
   securityContext: {}
 
 trino:
-  enabled: false
+  enabled: true
   # Default values for trino.
   # This is a YAML-formatted file.
   # Declare variables to be passed into your templates.
@@ -201,7 +200,7 @@ trino:
     workerExtraConfig: ""
     coordinatorExtraConfig: ""
     autoscaling:
-      enabled: true
+      enabled: false
       maxReplicas: 4
       targetCPUUtilizationPercentage: 50
       targetMemoryUtilizationPercentage: 70
@@ -429,7 +428,18 @@ trino:
   #  - custom-property2=custom-value2
   # ```
 
-  additionalCatalogs: {}
+  additionalCatalogs:
+    iceberg: |
+      connector.name=iceberg
+      iceberg.catalog.type=hive_metastore
+      hive.metastore.uri=thrift://hive-thrift:9083
+      iceberg.file-format=PARQUET
+      fs.native-gcs.enabled=true
+      gcs.project-id=pwa-demo-nil1729
+      gcs.json-key-file-path=/secrets/gcp-service-account
+      hive.metastore.thrift.client.read-timeout=600s
+      hive.metastore.thrift.client.connect-timeout=120s
+
   # additionalCatalogs -- Configure additional
   # [catalogs](https://trino.io/docs/current/installation/deployment.html#catalog-properties).
   # The TPCH and TPCDS catalogs are always enabled by default, with 4 splits per
@@ -567,7 +577,10 @@ trino:
   #    path: /config-map/sample.json
   # ```
 
-  secretMounts: []
+  secretMounts:
+    - name: common-secrets
+      secretName: common-secrets
+      path: /secrets
   # secretMounts -- Allows mounting additional Trino configuration files from
   # Kubernetes secrets on all nodes.
   # @raw
@@ -607,12 +620,13 @@ trino:
     # ```
 
     resources:
-      limits:
-        cpu: 2
-        memory: 3Gi
-      requests:
-        cpu: 2
-        memory: 3Gi
+      {}
+      # limits:
+      #   cpu: 2
+      #   memory: 3Gi
+      # requests:
+      #   cpu: 2
+      #   memory: 3Gi
 
     # coordinator.resources -- It is recommended not to specify default resources
     # and to leave this as a conscious choice for the user. This also increases
@@ -754,12 +768,13 @@ trino:
     # ```
 
     resources:
-      limits:
-        cpu: 1
-        memory: 3Gi
-      requests:
-        cpu: 1
-        memory: 3Gi
+      {}
+      # limits:
+      #   cpu: 1
+      #   memory: 3Gi
+      # requests:
+      #   cpu: 1
+      #   memory: 3Gi
     # worker.resources -- It is recommended not to specify default resources and
     # to leave this as a conscious choice for the user. This also increases
     # chances charts run on environments with little resources, such as Minikube.
