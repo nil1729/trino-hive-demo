@@ -1,5 +1,5 @@
 externalSecrets:
-  enabled: false
+  enabled: true
   name: common-external-secrets
   refreshInterval: "24h"
   secretStoreRef:
@@ -10,41 +10,70 @@ externalSecrets:
     creationPolicy: Owner
   data:
     secretRef:
-      - secretKey: HIVE_SERVICE_OPTS
-        remoteRefKey: hive-thrift-secret-local
+      # gcp service account
       - secretKey: gcp-service-account
-        remoteRefKey: gcp-service-account
+        remoteRefKey: dev-gcp-service-account
+
+      # hive
+      - secretKey: SERVICE_OPTS
+        remoteRefKey: dev-hive-thrift-secret
+
+      # superset postgres
       - secretKey: SUPERSET_DB_USER
-        remoteRefKey: superset-db-user-local
+        remoteRefKey: dev-superset-db-user
       - secretKey: SUPERSET_DB_PASSWORD
-        remoteRefKey: superset-db-password-local
+        remoteRefKey: dev-superset-db-password
       - secretKey: SUPERSET_DB_HOST
-        remoteRefKey: superset-db-host-local
+        remoteRefKey: dev-superset-db-host
       - secretKey: SUPERSET_DB_PORT
-        remoteRefKey: superset-db-port-local
+        remoteRefKey: dev-superset-db-port
       - secretKey: SUPERSET_DB_NAME
-        remoteRefKey: superset-db-name-local
+        remoteRefKey: dev-superset-db-name
+
+      # superset redis
+      - secretKey: SUPERSET_REDIS_PROTO
+        remoteRefKey: dev-superset-redis-proto
+      - secretKey: SUPERSET_REDIS_PASSWORD
+        remoteRefKey: dev-superset-redis-password
+      - secretKey: SUPERSET_REDIS_HOST
+        remoteRefKey: dev-superset-redis-host
+      - secretKey: SUPERSET_REDIS_PORT
+        remoteRefKey: dev-superset-redis-port
+      - secretKey: SUPERSET_REDIS_SSL_CERT_REQS
+        remoteRefKey: dev-superset-redis-ssl-cert-reqs
+
+      # superset secret key
+      - secretKey: SUPERSET_SECRET_KEY
+        remoteRefKey: dev-superset-secret-key
+
+      # superset admin
+      - secretKey: SUPERSET_ADMIN_USER_PASSWORD
+        remoteRefKey: dev-superset-admin-password
+      - secretKey: SUPERSET_ADMIN_USER_USERNAME
+        remoteRefKey: dev-superset-admin-username
+      - secretKey: SUPERSET_ADMIN_USER_EMAIL
+        remoteRefKey: dev-superset-admin-email
 
 tls:
-  enabled: false
+  enabled: true
   secretStoreRef:
     kind: ClusterSecretStore
     name: gcp-secret-manager
   data:
     - name: trino-tls-secret
-      crt: trino-tls-certificate
-      key: trino-tls-key
-    - name: superset-tls-secret
-      crt: superset-tls-certificate
-      key: superset-tls-key
+      crt: dev-trino-tls-certificate
+      key: dev-trino-tls-key
+    # - name: superset-tls-secret
+    #   crt: superset-tls-certificate
+    #   key: superset-tls-key
 
 hive:
-  enabled: false
+  enabled: true
   replicaCount: 1
   image:
     repository: ghcr.io/nil1729/trino-hive-demo
     pullPolicy: IfNotPresent
-    tag: hive-master
+    tag: "hive-master"
 
   imagePullSecrets: []
   nameOverride: ""
@@ -110,7 +139,7 @@ hive:
       valueFrom:
         secretKeyRef:
           name: common-secrets
-          key: HIVE_SERVICE_OPTS
+          key: SERVICE_OPTS
 
   service:
     type: ClusterIP
@@ -158,10 +187,10 @@ hive:
   securityContext: {}
 
 trino:
-  enabled: false
-  nameOverride: trino-local
-  coordinatorNameOverride: trino-local-coordinator
-  workerNameOverride: trino-local-worker
+  enabled: true
+  nameOverride: trino
+  coordinatorNameOverride: trino-coordinator
+  workerNameOverride: trino-worker
 
   image:
     registry: ""
@@ -200,8 +229,8 @@ trino:
     workerExtraConfig: ""
     coordinatorExtraConfig: ""
     autoscaling:
-      enabled: false
-      maxReplicas: 4
+      enabled: true
+      maxReplicas: 2
       targetCPUUtilizationPercentage: 50
       targetMemoryUtilizationPercentage: 70
       behavior:
@@ -237,15 +266,6 @@ trino:
       iceberg.catalog.type=hive_metastore
       hive.metastore.uri=thrift://hive-thrift:9083
       iceberg.file-format=PARQUET
-      fs.native-gcs.enabled=true
-      gcs.project-id=pwa-demo-nil1729
-      gcs.json-key-file-path=/secrets/gcp-service-account
-      hive.metastore.thrift.client.read-timeout=600s
-      hive.metastore.thrift.client.connect-timeout=120s
-    hive: |
-      connector.name=hive
-      hive.metastore.uri=thrift://hive-thrift:9083
-      hive.non-managed-table-writes-enabled=true
       fs.native-gcs.enabled=true
       gcs.project-id=pwa-demo-nil1729
       gcs.json-key-file-path=/secrets/gcp-service-account
@@ -308,7 +328,13 @@ trino:
 
     additionalJVMConfig: []
     additionalExposedPorts: {}
-    resources: {}
+    resources:
+      requests:
+        memory: "8G"
+        cpu: "2"
+      limits:
+        memory: "8G"
+        cpu: "2"
     livenessProbe: {}
     readinessProbe: {}
     lifecycle: {}
@@ -340,7 +366,13 @@ trino:
 
     additionalJVMConfig: []
     additionalExposedPorts: {}
-    resources: {}
+    resources:
+      requests:
+        memory: "8G"
+        cpu: "2"
+      limits:
+        memory: "8G"
+        cpu: "2"
     livenessProbe: {}
     readinessProbe: {}
     lifecycle: {}
@@ -386,14 +418,14 @@ trino:
     className: "contour"
     annotations: {}
     hosts:
-      - host: trino.k8s.test.nilanjandeb.com
+      - host: trino.pwa-demo-nil1729.gke.dev.nilanjandeb.com
         paths:
           - path: /
             pathType: ImplementationSpecific
     tls:
       - secretName: trino-tls-secret
         hosts:
-          - trino.k8s.test.nilanjandeb.com
+          - trino.pwa-demo-nil1729.gke.dev.nilanjandeb.com
 
 superset:
   enabled: true
@@ -420,11 +452,11 @@ superset:
     #!/bin/bash
     if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid {{ .Values.runAsUser }}" > ~/bootstrap; fi
 
-  configFromSecret: "superset-config"
-  envFromSecret: superset-env
+  configFromSecret: superset-config
+  envFromSecret: ~
 
   extraEnv:
-    SERVER_WORKER_CLASS: gevent
+    SERVER_WORKER_CLASS: gthread
     GUNICORN_TIMEOUT: 300
     SERVER_WORKER_AMOUNT: 4
     WORKER_MAX_REQUESTS: 0
@@ -434,7 +466,7 @@ superset:
     SERVER_LIMIT_REQUEST_LINE: 0
     SERVER_LIMIT_REQUEST_FIELD_SIZE: 0
 
-  extraEnvRaw:
+  extraEnvRaw: &extraEnvRaw
     - name: DB_USER
       valueFrom:
         secretKeyRef:
@@ -460,6 +492,51 @@ superset:
         secretKeyRef:
           name: common-secrets
           key: SUPERSET_DB_NAME
+    - name: REDIS_PROTO
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_REDIS_PROTO
+    - name: REDIS_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_REDIS_PASSWORD
+    - name: REDIS_HOST
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_REDIS_HOST
+    - name: REDIS_PORT
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_REDIS_PORT
+    - name: REDIS_SSL_CERT_REQS
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_REDIS_SSL_CERT_REQS
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_SECRET_KEY
+    - name: ADMIN_USER_EMAIL
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_ADMIN_USER_EMAIL
+    - name: ADMIN_USER_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_ADMIN_USER_USERNAME
+    - name: ADMIN_USER_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_ADMIN_USER_PASSWORD
 
   envFromSecrets: []
   extraSecretEnv: {}
@@ -493,11 +570,12 @@ superset:
     path: /
     pathType: ImplementationSpecific
     hosts:
-      - superset.k8s.test.nilanjandeb.com
+      - superset.pwa-demo-nil1729.gke.dev.nilanjandeb.com
     tls:
-      - secretName: superset-tls-secret
-        hosts:
-          - superset.k8s.test.nilanjandeb.com
+      []
+      # - secretName: superset-tls-secret
+      #   hosts:
+      #     - superset.k8s.test.nilanjandeb.com
     extraHostsRaw: []
 
   resources: {}
@@ -527,9 +605,10 @@ superset:
       redis_user: ~
       redis_cache_db: "1"
       redis_celery_db: "0"
+      redis_password: "enabled"
       redis_ssl:
-        enabled: false
-        ssl_cert_reqs: CERT_NONE
+        enabled: true
+        ssl_cert_reqs: ~
       db_host: ~
       db_port: ~
       db_user: ~
@@ -541,9 +620,7 @@ superset:
       - name: wait-for-postgres
         image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
         imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
-        envFrom:
-          - secretRef:
-              name: "{{ tpl .Values.envFromSecret . }}"
+        env: *extraEnvRaw
         command:
           - /bin/sh
           - -c
@@ -611,9 +688,7 @@ superset:
       - name: wait-for-postgres-redis
         image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
         imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
-        envFrom:
-          - secretRef:
-              name: "{{ tpl .Values.envFromSecret . }}"
+        env: *extraEnvRaw
         command:
           - /bin/sh
           - -c
@@ -659,9 +734,7 @@ superset:
       - name: wait-for-postgres-redis
         image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
         imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
-        envFrom:
-          - secretRef:
-              name: "{{ tpl .Values.envFromSecret . }}"
+        env: *extraEnvRaw
         command:
           - /bin/sh
           - -c
@@ -726,9 +799,7 @@ superset:
       - name: wait-for-postgres-redis
         image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
         imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
-        envFrom:
-          - secretRef:
-              name: "{{ tpl .Values.envFromSecret . }}"
+        env: *extraEnvRaw
         command:
           - /bin/sh
           - -c
@@ -828,15 +899,13 @@ superset:
       "helm.sh/hook": post-install,post-upgrade
       "helm.sh/hook-delete-policy": "before-hook-creation"
     loadExamples: false
-    createAdmin: false
+    createAdmin: true
     adminUser: {}
     initContainers:
       - name: wait-for-postgres
         image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
         imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
-        envFrom:
-          - secretRef:
-              name: "{{ tpl .Values.envFromSecret . }}"
+        env: *extraEnvRaw
         command:
           - /bin/sh
           - -c
@@ -853,12 +922,11 @@ superset:
       {{ if .Values.init.createAdmin }}
       echo "Creating admin user..."
       superset fab create-admin \
-                      --username {{ .Values.init.adminUser.username }} \
-                      --firstname {{ .Values.init.adminUser.firstname }} \
-                      --lastname {{ .Values.init.adminUser.lastname }} \
-                      --email {{ .Values.init.adminUser.email }} \
-                      --password {{ .Values.init.adminUser.password }} \
-                      || true
+                  --username "${ADMIN_USER_USERNAME}" \
+                  --firstname "SUPERSET" \
+                  --lastname "SUPER ADMIN" \
+                  --email "${ADMIN_USER_EMAIL}" \
+                  --password "${ADMIN_USER_PASSWORD}" || true
       {{- end }}
       {{ if .Values.init.loadExamples }}
       echo "Loading examples..."

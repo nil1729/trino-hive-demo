@@ -69,7 +69,8 @@ from flask_caching.backends.rediscache import RedisCache
 def env(key, default=None):
     return os.getenv(key, default)
 
-# SECRET_KEY=env('SUPERSET_SECRET_KEY')
+# superset secret key
+SECRET_KEY=env('SECRET_KEY')
 
 # Redis Base URL
 {{- if .Values.supersetNode.connections.redis_password }}
