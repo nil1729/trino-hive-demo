@@ -1,5 +1,5 @@
 externalSecrets:
-  enabled: true
+  enabled: false
   name: common-external-secrets
   refreshInterval: "24h"
   secretStoreRef:
@@ -55,7 +55,7 @@ externalSecrets:
         remoteRefKey: dev-superset-admin-email
 
 tls:
-  enabled: true
+  enabled: false
   secretStoreRef:
     kind: ClusterSecretStore
     name: gcp-secret-manager
@@ -68,12 +68,12 @@ tls:
     #   key: superset-tls-key
 
 hive:
-  enabled: true
+  enabled: false
   replicaCount: 1
   image:
     repository: ghcr.io/nil1729/trino-hive-demo
     pullPolicy: IfNotPresent
-    tag: "hive-master"
+    tag: hive-master
 
   imagePullSecrets: []
   nameOverride: ""
@@ -139,7 +139,7 @@ hive:
       valueFrom:
         secretKeyRef:
           name: common-secrets
-          key: SERVICE_OPTS
+          key: HIVE_SERVICE_OPTS
 
   service:
     type: ClusterIP
@@ -266,6 +266,15 @@ trino:
       iceberg.catalog.type=hive_metastore
       hive.metastore.uri=thrift://hive-thrift:9083
       iceberg.file-format=PARQUET
+      fs.native-gcs.enabled=true
+      gcs.project-id=pwa-demo-nil1729
+      gcs.json-key-file-path=/secrets/gcp-service-account
+      hive.metastore.thrift.client.read-timeout=600s
+      hive.metastore.thrift.client.connect-timeout=120s
+    hive: |
+      connector.name=hive
+      hive.metastore.uri=thrift://hive-thrift:9083
+      hive.non-managed-table-writes-enabled=true
       fs.native-gcs.enabled=true
       gcs.project-id=pwa-demo-nil1729
       gcs.json-key-file-path=/secrets/gcp-service-account
