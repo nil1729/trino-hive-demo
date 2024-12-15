@@ -1,3 +1,4 @@
 gcp-sa.json
 exchange-manager.properties
 *-poc
+values-*.yaml

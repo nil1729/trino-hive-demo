@@ -76,8 +76,10 @@ spec:
           {{- end }}
         {{- end }}
         envFrom:
-          - secretRef:
-              name: {{ tpl .Values.envFromSecret . }}
+          {{- if .Values.envFromSecret }}
+            - secretRef:
+                name: {{ tpl .Values.envFromSecret . | quote }}
+            {{- end }}
           {{- range .Values.envFromSecrets }}
           - secretRef:
               name: {{ tpl . $ | quote }}

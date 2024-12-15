@@ -89,8 +89,10 @@ spec:
               {{- toYaml .Values.extraEnvRaw | nindent 12 }}
             {{- end }}
           envFrom:
+            {{- if .Values.envFromSecret }}
             - secretRef:
                 name: {{ tpl .Values.envFromSecret . | quote }}
+            {{- end }}
             {{- range .Values.envFromSecrets }}
             - secretRef:
                 name: {{ tpl . $ | quote }}
