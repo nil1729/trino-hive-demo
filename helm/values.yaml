@@ -1,5 +1,5 @@
 externalSecrets:
-  enabled: true
+  enabled: false
   name: common-external-secrets
   refreshInterval: "24h"
   secretStoreRef:
@@ -10,13 +10,23 @@ externalSecrets:
     creationPolicy: Owner
   data:
     secretRef:
-      - secretKey: SERVICE_OPTS
+      - secretKey: HIVE_SERVICE_OPTS
         remoteRefKey: hive-thrift-secret-local
       - secretKey: gcp-service-account
         remoteRefKey: gcp-service-account
+      - secretKey: SUPERSET_DB_USER
+        remoteRefKey: superset-db-user-local
+      - secretKey: SUPERSET_DB_PASSWORD
+        remoteRefKey: superset-db-password-local
+      - secretKey: SUPERSET_DB_HOST
+        remoteRefKey: superset-db-host-local
+      - secretKey: SUPERSET_DB_PORT
+        remoteRefKey: superset-db-port-local
+      - secretKey: SUPERSET_DB_NAME
+        remoteRefKey: superset-db-name-local
 
 tls:
-  enabled: true
+  enabled: false
   secretStoreRef:
     kind: ClusterSecretStore
     name: gcp-secret-manager
@@ -24,14 +34,17 @@ tls:
     - name: trino-tls-secret
       crt: trino-tls-certificate
       key: trino-tls-key
+    - name: superset-tls-secret
+      crt: superset-tls-certificate
+      key: superset-tls-key
 
 hive:
-  enabled: true
+  enabled: false
   replicaCount: 1
   image:
     repository: ghcr.io/nil1729/trino-hive-demo
     pullPolicy: IfNotPresent
-    tag: "hive-master"
+    tag: hive-master
 
   imagePullSecrets: []
   nameOverride: ""
@@ -97,7 +110,7 @@ hive:
       valueFrom:
         secretKeyRef:
           name: common-secrets
-          key: SERVICE_OPTS
+          key: HIVE_SERVICE_OPTS
 
   service:
     type: ClusterIP
@@ -145,7 +158,7 @@ hive:
   securityContext: {}
 
 trino:
-  enabled: true
+  enabled: false
   nameOverride: trino-local
   coordinatorNameOverride: trino-local-coordinator
   workerNameOverride: trino-local-worker
@@ -224,6 +237,15 @@ trino:
       iceberg.catalog.type=hive_metastore
       hive.metastore.uri=thrift://hive-thrift:9083
       iceberg.file-format=PARQUET
+      fs.native-gcs.enabled=true
+      gcs.project-id=pwa-demo-nil1729
+      gcs.json-key-file-path=/secrets/gcp-service-account
+      hive.metastore.thrift.client.read-timeout=600s
+      hive.metastore.thrift.client.connect-timeout=120s
+    hive: |
+      connector.name=hive
+      hive.metastore.uri=thrift://hive-thrift:9083
+      hive.non-managed-table-writes-enabled=true
       fs.native-gcs.enabled=true
       gcs.project-id=pwa-demo-nil1729
       gcs.json-key-file-path=/secrets/gcp-service-account
@@ -372,3 +394,492 @@ trino:
       - secretName: trino-tls-secret
         hosts:
           - trino.k8s.test.nilanjandeb.com
+
+superset:
+  enabled: true
+
+  nameOverride: ~
+  fullnameOverride: superset
+
+  image:
+    repository: ghcr.io/nil1729/trino-hive-demo
+    tag: superset-master
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+
+  extraLabels: {}
+  runAsUser: 0
+  secretEnv:
+    create: false
+  serviceAccountName: ~
+  serviceAccount:
+    create: false
+    annotations: {}
+
+  bootstrapScript: |
+    #!/bin/bash
+    if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid {{ .Values.runAsUser }}" > ~/bootstrap; fi
+
+  configFromSecret: "superset-config"
+  envFromSecret: superset-env
+
+  extraEnv:
+    SERVER_WORKER_CLASS: gevent
+    GUNICORN_TIMEOUT: 300
+    SERVER_WORKER_AMOUNT: 4
+    WORKER_MAX_REQUESTS: 0
+    WORKER_MAX_REQUESTS_JITTER: 0
+    SERVER_THREADS_AMOUNT: 20
+    GUNICORN_KEEPALIVE: 2
+    SERVER_LIMIT_REQUEST_LINE: 0
+    SERVER_LIMIT_REQUEST_FIELD_SIZE: 0
+
+  extraEnvRaw:
+    - name: DB_USER
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_DB_USER
+    - name: DB_PASS
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_DB_PASSWORD
+    - name: DB_HOST
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_DB_HOST
+    - name: DB_PORT
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_DB_PORT
+    - name: DB_NAME
+      valueFrom:
+        secretKeyRef:
+          name: common-secrets
+          key: SUPERSET_DB_NAME
+
+  envFromSecrets: []
+  extraSecretEnv: {}
+  extraConfigs: {}
+  extraSecrets: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  configOverrides: {}
+  configOverridesFiles: {}
+
+  configMountPath: "/app/pythonpath"
+  extraConfigMountPath: "/app/configs"
+
+  initImage:
+    repository: apache/superset
+    tag: dockerize
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8088
+    annotations: {}
+    loadBalancerIP: ~
+    nodePort:
+      http: ~
+
+  ingress:
+    enabled: true
+    ingressClassName: "contour"
+    annotations: {}
+    path: /
+    pathType: ImplementationSpecific
+    hosts:
+      - superset.k8s.test.nilanjandeb.com
+    tls:
+      - secretName: superset-tls-secret
+        hosts:
+          - superset.k8s.test.nilanjandeb.com
+    extraHostsRaw: []
+
+  resources: {}
+  hostAliases: []
+
+  supersetNode:
+    replicas:
+      enabled: true
+      replicaCount: 1
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      targetMemoryUtilizationPercentage: 80
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: 1
+    command:
+      - "/bin/sh"
+      - "-c"
+      - ". {{ .Values.configMountPath }}/superset_bootstrap.sh; /usr/bin/run-server.sh"
+    connections:
+      redis_host: ~
+      redis_port: ~
+      redis_user: ~
+      redis_cache_db: "1"
+      redis_celery_db: "0"
+      redis_ssl:
+        enabled: false
+        ssl_cert_reqs: CERT_NONE
+      db_host: ~
+      db_port: ~
+      db_user: ~
+      db_pass: ~
+      db_name: ~
+    env: {}
+    forceReload: false
+    initContainers:
+      - name: wait-for-postgres
+        image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+        imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
+        envFrom:
+          - secretRef:
+              name: "{{ tpl .Values.envFromSecret . }}"
+        command:
+          - /bin/sh
+          - -c
+          - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -timeout 120s
+
+    extraContainers: []
+    deploymentAnnotations: {}
+    deploymentLabels: {}
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    startupProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 15
+      timeoutSeconds: 1
+      failureThreshold: 60
+      periodSeconds: 5
+      successThreshold: 1
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 15
+      timeoutSeconds: 1
+      failureThreshold: 3
+      periodSeconds: 15
+      successThreshold: 1
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: http
+      initialDelaySeconds: 15
+      timeoutSeconds: 1
+      failureThreshold: 3
+      periodSeconds: 15
+      successThreshold: 1
+    resources: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    strategy: {}
+
+  supersetWorker:
+    replicas:
+      enabled: true
+      replicaCount: 0
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 100
+      targetCPUUtilizationPercentage: 80
+      targetMemoryUtilizationPercentage: 80
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: 1
+    command:
+      - "/bin/sh"
+      - "-c"
+      - ". {{ .Values.configMountPath }}/superset_bootstrap.sh; celery --app=superset.tasks.celery_app:app worker"
+    forceReload: false
+    initContainers:
+      - name: wait-for-postgres-redis
+        image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+        imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
+        envFrom:
+          - secretRef:
+              name: "{{ tpl .Values.envFromSecret . }}"
+        command:
+          - /bin/sh
+          - -c
+          - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -wait "tcp://$REDIS_HOST:$REDIS_PORT" -timeout 120s
+    extraContainers: []
+    deploymentAnnotations: {}
+    deploymentLabels: {}
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    strategy: {}
+    livenessProbe:
+      exec:
+        command:
+          - sh
+          - -c
+          - celery -A superset.tasks.celery_app:app inspect ping -d celery@$HOSTNAME
+      initialDelaySeconds: 120
+      timeoutSeconds: 60
+      failureThreshold: 3
+      periodSeconds: 60
+      successThreshold: 1
+    startupProbe: {}
+    readinessProbe: {}
+    priorityClassName: ~
+
+  supersetCeleryBeat:
+    enabled: false
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: 1
+    command:
+      - "/bin/sh"
+      - "-c"
+      - ". {{ .Values.configMountPath }}/superset_bootstrap.sh; celery --app=superset.tasks.celery_app:app beat --pidfile /tmp/celerybeat.pid --schedule /tmp/celerybeat-schedule"
+    forceReload: false
+    initContainers:
+      - name: wait-for-postgres-redis
+        image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+        imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
+        envFrom:
+          - secretRef:
+              name: "{{ tpl .Values.envFromSecret . }}"
+        command:
+          - /bin/sh
+          - -c
+          - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -wait "tcp://$REDIS_HOST:$REDIS_PORT" -timeout 120s
+    extraContainers: []
+    deploymentAnnotations: {}
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    priorityClassName: ~
+
+  supersetCeleryFlower:
+    enabled: false
+    replicaCount: 1
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: 1
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "celery --app=superset.tasks.celery_app:app flower"
+    service:
+      type: ClusterIP
+      annotations: {}
+      loadBalancerIP: ~
+      port: 5555
+      nodePort:
+        http: ~
+    startupProbe:
+      httpGet:
+        path: /api/workers
+        port: flower
+      initialDelaySeconds: 5
+      timeoutSeconds: 1
+      failureThreshold: 60
+      periodSeconds: 5
+      successThreshold: 1
+    livenessProbe:
+      httpGet:
+        path: /api/workers
+        port: flower
+      initialDelaySeconds: 5
+      timeoutSeconds: 1
+      failureThreshold: 3
+      periodSeconds: 5
+      successThreshold: 1
+    readinessProbe:
+      httpGet:
+        path: /api/workers
+        port: flower
+      initialDelaySeconds: 5
+      timeoutSeconds: 1
+      failureThreshold: 3
+      periodSeconds: 5
+      successThreshold: 1
+    initContainers:
+      - name: wait-for-postgres-redis
+        image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+        imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
+        envFrom:
+          - secretRef:
+              name: "{{ tpl .Values.envFromSecret . }}"
+        command:
+          - /bin/sh
+          - -c
+          - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -wait "tcp://$REDIS_HOST:$REDIS_PORT" -timeout 120s
+    extraContainers: []
+    deploymentAnnotations: {}
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    priorityClassName: ~
+
+  supersetWebsockets:
+    enabled: false
+    replicaCount: 1
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: 1
+    ingress:
+      path: /ws
+      pathType: Prefix
+    image:
+      repository: oneacrefund/superset-websocket
+      tag: latest
+      pullPolicy: IfNotPresent
+    config:
+      {
+        "port": 8080,
+        "logLevel": "debug",
+        "logToFile": false,
+        "logFilename": "app.log",
+        "statsd": { "host": "127.0.0.1", "port": 8125, "globalTags": [] },
+        "redis": { "port": 6379, "host": "127.0.0.1", "password": "", "db": 0, "ssl": false },
+        "redisStreamPrefix": "async-events-",
+        "jwtSecret": "CHANGE-ME",
+        "jwtCookieName": "async-token",
+      }
+    service:
+      type: ClusterIP
+      annotations: {}
+      loadBalancerIP: ~
+      port: 8080
+      nodePort:
+        http: ~
+    command: []
+    resources: {}
+    extraContainers: []
+    deploymentAnnotations: {}
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    strategy: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    startupProbe:
+      httpGet:
+        path: /health
+        port: ws
+      initialDelaySeconds: 5
+      timeoutSeconds: 1
+      failureThreshold: 60
+      periodSeconds: 5
+      successThreshold: 1
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: ws
+      initialDelaySeconds: 5
+      timeoutSeconds: 1
+      failureThreshold: 3
+      periodSeconds: 5
+      successThreshold: 1
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: ws
+      initialDelaySeconds: 5
+      timeoutSeconds: 1
+      failureThreshold: 3
+      periodSeconds: 5
+      successThreshold: 1
+    priorityClassName: ~
+
+  init:
+    resources: {}
+    command:
+      - "/bin/sh"
+      - "-c"
+      - ". {{ .Values.configMountPath }}/superset_bootstrap.sh; . {{ .Values.configMountPath }}/superset_init.sh"
+    enabled: true
+    jobAnnotations:
+      "helm.sh/hook": post-install,post-upgrade
+      "helm.sh/hook-delete-policy": "before-hook-creation"
+    loadExamples: false
+    createAdmin: false
+    adminUser: {}
+    initContainers:
+      - name: wait-for-postgres
+        image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+        imagePullPolicy: "{{ .Values.initImage.pullPolicy }}"
+        envFrom:
+          - secretRef:
+              name: "{{ tpl .Values.envFromSecret . }}"
+        command:
+          - /bin/sh
+          - -c
+          - dockerize -wait "tcp://$DB_HOST:$DB_PORT" -timeout 120s
+    # -- A Superset init script
+    # @default -- a script to create admin user and initialize roles
+    initscript: |-
+      #!/bin/sh
+      set -eu
+      echo "Upgrading DB schema..."
+      superset db upgrade
+      echo "Initializing roles..."
+      superset init
+      {{ if .Values.init.createAdmin }}
+      echo "Creating admin user..."
+      superset fab create-admin \
+                      --username {{ .Values.init.adminUser.username }} \
+                      --firstname {{ .Values.init.adminUser.firstname }} \
+                      --lastname {{ .Values.init.adminUser.lastname }} \
+                      --email {{ .Values.init.adminUser.email }} \
+                      --password {{ .Values.init.adminUser.password }} \
+                      || true
+      {{- end }}
+      {{ if .Values.init.loadExamples }}
+      echo "Loading examples..."
+      superset load_examples
+      {{- end }}
+      if [ -f "{{ .Values.extraConfigMountPath }}/import_datasources.yaml" ]; then
+        echo "Importing database connections.... "
+        superset import_datasources -p {{ .Values.extraConfigMountPath }}/import_datasources.yaml
+      fi
+    extraContainers: []
+    podAnnotations: {}
+    podLabels: {}
+    podSecurityContext: {}
+    containerSecurityContext: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    priorityClassName: ~
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  priorityClassName: ~

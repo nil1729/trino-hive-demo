@@ -1,9 +1,9 @@
-FROM apache/superset:2.1.3
+FROM apache/superset:4.1.1
 USER root
 
-RUN pip install --upgrade pip
-RUN pip install trino
+RUN pip install --upgrade pip \
+  && pip install trino psycopg2-binary Pillow
 
-COPY docker-init.sh /opt/bin/docker-init.sh
-RUN chmod +x /opt/bin/docker-init.sh
+# COPY docker-init.sh /opt/bin/docker-init.sh
+# RUN chmod +x /opt/bin/docker-init.sh
 USER superset
