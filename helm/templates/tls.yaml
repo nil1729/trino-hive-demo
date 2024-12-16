@@ -1,5 +1,6 @@
 {{- if .Values.tls.enabled }}
 {{- range .Values.tls.data }}
+---
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
