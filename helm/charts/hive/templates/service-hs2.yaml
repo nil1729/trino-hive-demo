@@ -1,0 +1,22 @@
+{{- if .Values.hiveServer2.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "hive.fullname" . }}-server
+  labels:
+    {{- include "hive.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.hiveServer2.service.type }}
+  ports:
+  {{- range .Values.hiveServer2.service.ports }}
+  - name: {{ .name }}
+    port: {{ .port }}
+    targetPort: {{ .targetPort }}
+    protocol: {{ .protocol }}
+  {{- end }}
+  selector:
+    app: {{ template "hive.fullname" . }}-server
+    release: {{ .Release.Name }}
+{{- end }}
+

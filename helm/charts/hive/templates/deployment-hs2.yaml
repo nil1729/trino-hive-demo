@@ -24,6 +24,10 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        app: {{ template "hive.fullname" . }}-server
+        chart: {{ template "hive.chart" . }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

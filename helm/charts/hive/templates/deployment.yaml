@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: {{ .Release.Namespace }}
-  name: {{ include "hive.fullname" . }}-thirft
+  name: {{ include "hive.fullname" . }}-thrift
   labels:
     {{- include "hive.labels" . | nindent 4 }}
 spec:
@@ -23,6 +23,10 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        app: {{ template "hive.fullname" . }}-thrift
+        chart: {{ template "hive.chart" . }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

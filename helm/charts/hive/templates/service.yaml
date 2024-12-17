@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: {{ .Release.Namespace }}
-  name: {{ include "hive.fullname" . }}
+  name: {{ include "hive.fullname" . }}-thrift
   labels:
     {{- include "hive.labels" . | nindent 4 }}
 spec:
@@ -12,13 +12,6 @@ spec:
       targetPort: {{ .Values.service.targetPort }}
       protocol: {{ .Values.service.protocol }}
       name: {{ .Values.service.name }}
-  {{- if and .Values.hiveServer2.enabled .Values.hiveServer2.service }}
-    {{- range .Values.hiveServer2.service }}
-    - name: {{ .name }}
-      port: {{ .port }}
-      targetPort: {{ .targetPort }}
-      protocol: {{ .protocol }}
-    {{- end }}
-  {{- end }}
   selector:
-    {{- include "hive.selectorLabels" . | nindent 4 }}
+    app: {{ template "hive.fullname" . }}-thrift
+    release: {{ .Release.Name }}

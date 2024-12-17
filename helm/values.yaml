@@ -199,18 +199,21 @@ hive:
       timeoutSeconds: 10
       failureThreshold: 5
     service:
-      - name: hive2
-        port: 10000
-        targetPort: 10000
-        protocol: TCP
-      - name: http
-        port: 10002
-        targetPort: 10002
-        protocol: TCP
+      type: LoadBalancer
+      ports:
+        - name: hive2
+          port: 10000
+          targetPort: 10000
+          protocol: TCP
+        - name: http
+          port: 10002
+          targetPort: 10002
+          protocol: TCP
     ingress:
       enabled: true
       className: "contour"
-      annotations: {}
+      annotations:
+        ingress.kubernetes.io/force-ssl-redirect: "true"
       targetPort: 10002
       hosts:
         - host: hive2.pwa-demo-nil1729.gke.dev.nilanjandeb.com
@@ -218,13 +221,12 @@ hive:
             - path: /
               pathType: ImplementationSpecific
       tls:
-        []
-        # - secretName: hive2-tls-secret
-        #   hosts:
-        #     - hive2.pwa-demo-nil1729.gke.dev.nilanjandeb.com
+        - secretName: hive2-tls-secret
+          hosts:
+            - hive2.pwa-demo-nil1729.gke.dev.nilanjandeb.com
 
 trino:
-  enabled: true
+  enabled: false
   nameOverride: trino
   coordinatorNameOverride: trino-coordinator
   workerNameOverride: trino-worker
@@ -462,7 +464,8 @@ trino:
   ingress:
     enabled: true
     className: "contour"
-    annotations: {}
+    annotations:
+      ingress.kubernetes.io/force-ssl-redirect: "true"
     hosts:
       - host: trino.pwa-demo-nil1729.gke.dev.nilanjandeb.com
         paths:
@@ -474,7 +477,7 @@ trino:
           - trino.pwa-demo-nil1729.gke.dev.nilanjandeb.com
 
 superset:
-  enabled: true
+  enabled: false
 
   nameOverride: ~
   fullnameOverride: superset
@@ -612,7 +615,8 @@ superset:
   ingress:
     enabled: true
     ingressClassName: "contour"
-    annotations: {}
+    annotations:
+      ingress.kubernetes.io/force-ssl-redirect: "true"
     path: /
     pathType: ImplementationSpecific
     hosts:

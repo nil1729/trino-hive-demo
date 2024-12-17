@@ -1,5 +1,5 @@
 {{- if and .Values.hiveServer2.enabled .Values.hiveServer2.ingress.enabled -}}
-{{- $fullName := include "hive.fullname" . -}}
+{{- $fullName := printf "%s-server" (include "hive.fullname" .) -}}
 {{- $svcPort := .Values.hiveServer2.ingress.targetPort -}}
 {{- if and .Values.hiveServer2.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
   {{- if not (hasKey .Values.hiveServer2.ingress.annotations "kubernetes.io/ingress.class") }}
