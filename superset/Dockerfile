@@ -2,8 +2,6 @@ FROM apache/superset:4.1.1
 USER root
 
 RUN pip install --upgrade pip \
-  && pip install trino psycopg2-binary Pillow
+  && pip install trino psycopg2-binary Pillow pyhive
 
-# COPY docker-init.sh /opt/bin/docker-init.sh
-# RUN chmod +x /opt/bin/docker-init.sh
 USER superset

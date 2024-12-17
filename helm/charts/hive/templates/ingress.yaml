@@ -1,9 +1,9 @@
-{{- if .Values.ingress.enabled -}}
+{{- if and .Values.hiveServer2.enabled .Values.hiveServer2.ingress.enabled -}}
 {{- $fullName := include "hive.fullname" . -}}
-{{- $svcPort := .Values.service.port -}}
-{{- if and .Values.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
-  {{- if not (hasKey .Values.ingress.annotations "kubernetes.io/ingress.class") }}
-  {{- $_ := set .Values.ingress.annotations "kubernetes.io/ingress.class" .Values.ingress.className}}
+{{- $svcPort := .Values.hiveServer2.ingress.targetPort -}}
+{{- if and .Values.hiveServer2.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.hiveServer2.ingress.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.hiveServer2.ingress.annotations "kubernetes.io/ingress.class" .Values.hiveServer2.ingress.className}}
   {{- end }}
 {{- end }}
 {{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
@@ -19,17 +19,17 @@ metadata:
   name: {{ $fullName }}
   labels:
     {{- include "hive.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  {{- with .Values.hiveServer2.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
-  ingressClassName: {{ .Values.ingress.className }}
+  {{- if and .Values.hiveServer2.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.hiveServer2.ingress.className }}
   {{- end }}
-  {{- if .Values.ingress.tls }}
+  {{- if .Values.hiveServer2.ingress.tls }}
   tls:
-    {{- range .Values.ingress.tls }}
+    {{- range .Values.hiveServer2.ingress.tls }}
     - hosts:
         {{- range .hosts }}
         - {{ . | quote }}
@@ -38,7 +38,7 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
+    {{- range .Values.hiveServer2.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:

@@ -15,7 +15,7 @@ externalSecrets:
         remoteRefKey: dev-gcp-service-account
 
       # hive
-      - secretKey: SERVICE_OPTS
+      - secretKey: HIVE_SERVICE_OPTS
         remoteRefKey: dev-hive-thrift-secret
 
       # superset postgres
@@ -63,9 +63,12 @@ tls:
     - name: trino-tls-secret
       crt: dev-trino-tls-certificate
       key: dev-trino-tls-key
-    # - name: superset-tls-secret
-    #   crt: superset-tls-certificate
-    #   key: superset-tls-key
+    - name: superset-tls-secret
+      crt: superset-tls-certificate
+      key: superset-tls-key
+    - name: hive2-tls-secret
+      crt: hive2-tls-certificate
+      key: hive2-tls-key
 
 hive:
   enabled: false
@@ -77,7 +80,7 @@ hive:
 
   imagePullSecrets: []
   nameOverride: ""
-  fullnameOverride: "hive-thrift"
+  fullnameOverride: "hive"
 
   serviceAccount:
     create: false
@@ -86,7 +89,7 @@ hive:
     name: ""
 
   configMap:
-    name: hive-thrift-config-map
+    name: hive-config-map
     core-site-xml: |
       <configuration>
         <property>
@@ -109,7 +112,7 @@ hive:
             path: gcs-sa.json
     - name: config-map-vol
       configMap:
-        name: hive-thrift-config-map
+        name: hive-config-map
         items:
           - key: core-site-xml
             path: core-site.xml
@@ -148,13 +151,6 @@ hive:
     targetPort: 9083
     protocol: TCP
 
-  ingress:
-    enabled: false
-    className: ""
-    annotations: {}
-    hosts: []
-    tls: []
-
   livenessProbe:
     tcpSocket:
       port: 9083
@@ -185,6 +181,47 @@ hive:
   podLabels: {}
   podSecurityContext: {}
   securityContext: {}
+
+  hiveServer2:
+    enabled: true
+    livenessProbe:
+      tcpSocket:
+        port: 10000
+      initialDelaySeconds: 30
+      periodSeconds: 60
+      timeoutSeconds: 10
+      failureThreshold: 5
+    readinessProbe:
+      tcpSocket:
+        port: 10000
+      initialDelaySeconds: 30
+      periodSeconds: 60
+      timeoutSeconds: 10
+      failureThreshold: 5
+    service:
+      - name: hive2
+        port: 10000
+        targetPort: 10000
+        protocol: TCP
+      - name: http
+        port: 10002
+        targetPort: 10002
+        protocol: TCP
+    ingress:
+      enabled: true
+      className: "contour"
+      annotations: {}
+      targetPort: 10002
+      hosts:
+        - host: hive2.pwa-demo-nil1729.gke.dev.nilanjandeb.com
+          paths:
+            - path: /
+              pathType: ImplementationSpecific
+      tls:
+        []
+        # - secretName: hive2-tls-secret
+        #   hosts:
+        #     - hive2.pwa-demo-nil1729.gke.dev.nilanjandeb.com
 
 trino:
   enabled: true
@@ -264,7 +301,7 @@ trino:
     iceberg: |
       connector.name=iceberg
       iceberg.catalog.type=hive_metastore
-      hive.metastore.uri=thrift://hive-thrift:9083
+      hive.metastore.uri=thrift://hive:9083
       iceberg.file-format=PARQUET
       fs.native-gcs.enabled=true
       gcs.project-id=pwa-demo-nil1729
@@ -273,7 +310,7 @@ trino:
       hive.metastore.thrift.client.connect-timeout=120s
     hive: |
       connector.name=hive
-      hive.metastore.uri=thrift://hive-thrift:9083
+      hive.metastore.uri=thrift://hive:9083
       hive.non-managed-table-writes-enabled=true
       fs.native-gcs.enabled=true
       gcs.project-id=pwa-demo-nil1729
@@ -584,7 +621,7 @@ superset:
       []
       # - secretName: superset-tls-secret
       #   hosts:
-      #     - superset.k8s.test.nilanjandeb.com
+      #     - superset.pwa-demo-nil1729.gke.dev.nilanjandeb.com
     extraHostsRaw: []
 
   resources: {}
