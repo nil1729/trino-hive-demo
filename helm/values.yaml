@@ -199,7 +199,7 @@ hive:
       timeoutSeconds: 10
       failureThreshold: 5
     service:
-      type: LoadBalancer
+      type: ClusterIP
       ports:
         - name: hive2
           port: 10000
