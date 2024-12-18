@@ -234,7 +234,7 @@ trino:
   image:
     registry: ""
     repository: trinodb/trino
-    tag: "440"
+    tag: "468"
     digest: ""
     useRepositoryAsSoleImageReference: false
     pullPolicy: IfNotPresent
