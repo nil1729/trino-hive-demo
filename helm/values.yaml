@@ -54,6 +54,12 @@ externalSecrets:
       - secretKey: SUPERSET_ADMIN_USER_EMAIL
         remoteRefKey: dev-superset-admin-email
 
+      # superser assets
+      # - secretKey: SUPERSET_APP_ICON
+      #   remoteRefKey: dev-superset-app-icon
+      # - secretKey: SUPERSET_FAVICONS
+      #   remoteRefKey: dev-superset-favicons
+
 tls:
   enabled: false
   secretStoreRef:
@@ -132,8 +138,6 @@ hive:
       value: "/opt/hadoop/share/hadoop/tools/lib/*"
     - name: METASTORE_AUX_JARS_PATH
       value: "/opt/hadoop/share/hadoop/tools/lib/*"
-    - name: SERVICE_NAME
-      value: "metastore"
     - name: VERBOSE
       value: "true"
     - name: DB_DRIVER
@@ -233,8 +237,8 @@ trino:
 
   image:
     registry: ""
-    repository: trinodb/trino
-    tag: "440"
+    repository: ghcr.io/nil1729/trino-hive-demo
+    tag: "trino-master"
     digest: ""
     useRepositoryAsSoleImageReference: false
     pullPolicy: IfNotPresent
@@ -514,6 +518,9 @@ superset:
     GUNICORN_KEEPALIVE: 2
     SERVER_LIMIT_REQUEST_LINE: 0
     SERVER_LIMIT_REQUEST_FIELD_SIZE: 0
+    # APP_NAME: Superset
+    # APP_ICON: /static/assets/images/icons/app-icon.png
+    # FAVICONS: /static/assets/images/icons/favicon.png
 
   extraEnvRaw: &extraEnvRaw
     - name: DB_USER
@@ -587,12 +594,26 @@ superset:
           name: common-secrets
           key: SUPERSET_ADMIN_USER_PASSWORD
 
+  # extraVolumes:
+  #   - name: secret-vol
+  #     secret:
+  #       secretName: common-secrets
+  #       optional: false
+  #       items:
+  #         - key: SUPERSET_APP_ICON
+  #           path: app-icon.png
+  #         - key: SUPERSET_FAVICONS
+  #           path: favicon.png
+
+  # extraVolumeMounts:
+  #   - name: secret-vol
+  #     mountPath: "/app/superset/static/assets/images/icons"
+  #     readOnly: false
+
   envFromSecrets: []
   extraSecretEnv: {}
   extraConfigs: {}
   extraSecrets: {}
-  extraVolumes: []
-  extraVolumeMounts: []
   configOverrides: {}
   configOverridesFiles: {}
 
