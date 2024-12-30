@@ -1,0 +1,20 @@
+{{- if .Values.privateContainerRegistry.enabled }}
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: container-registry-external-secret
+  namespace: {{ .Release.Namespace }}
+spec:
+  refreshInterval: 24h
+  secretStoreRef:
+    name: {{ .Values.privateContainerRegistry.secretStoreRef.name }}
+    kind: {{ .Values.privateContainerRegistry.secretStoreRef.kind }}
+  target:
+    name: {{ .Values.privateContainerRegistry.secretName }}
+    template:
+      type: kubernetes.io/dockerconfigjson
+  data:
+    - secretKey: .dockerconfigjson
+      remoteRef:
+        key: {{ .Values.privateContainerRegistry.remoteRefKey }}
+{{- end }}

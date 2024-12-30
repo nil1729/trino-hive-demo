@@ -76,6 +76,14 @@ tls:
       crt: hive2-tls-certificate
       key: hive2-tls-key
 
+privateContainerRegistry:
+  enabled: true
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcp-secret-manager
+  secretName: ghcr-image-pull-secret
+  remoteRefKey: ghcr-docker-config
+
 hive:
   enabled: false
   replicaCount: 1
