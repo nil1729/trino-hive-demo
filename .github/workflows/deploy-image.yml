@@ -58,7 +58,7 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/hive:${{ github.sha }}
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/hive
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
@@ -106,7 +106,7 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/trino:${{ github.sha }}
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/trino
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
@@ -154,6 +154,6 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/superset:${{ github.sha }}
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/superset
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
