@@ -73,7 +73,7 @@ services:
     profiles: [trino]
 
   trino-cache-fs-init:
-    image: alpine:3.19.2
+    image: alpine:3.21.2
     hostname: trino-cache-fs-init
     container_name: trino-cache-fs-init
     user: root
