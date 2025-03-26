@@ -1,4 +1,4 @@
-FROM apache/superset:4.1.1
+FROM apache/superset:4.1.2
 USER root
 
 RUN pip install --upgrade pip \
